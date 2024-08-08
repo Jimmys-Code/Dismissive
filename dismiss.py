@@ -5,7 +5,6 @@ import numpy as np
 import threading
 import time
 import base64
-import sys
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -33,9 +32,6 @@ def audio_stream():
             data = stream.read(CHUNK, exception_on_overflow=False)
             audio_data = np.frombuffer(data, dtype=np.int16)
             audio_data = audio_data.astype(np.float32) / 32768.0  # Normalize to [-1, 1]
-            amplitude = np.abs(audio_data).mean()
-            sys.stdout.write(f"\rCurrent Amplitude: {amplitude:.4f}")
-            sys.stdout.flush()
             socketio.emit('audio_data', {'data': audio_data.tolist()})
             time.sleep(0.01)  # Add a small delay to prevent overwhelming the socket
         except IOError as e:
