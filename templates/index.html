@@ -9,10 +9,28 @@
             border: 1px solid #000;
             margin: 10px 0;
         }
+        body.dark-mode {
+            background-color: #121212;
+            color: #ffffff;
+        }
+
+        canvas {
+            border: 1px solid #000;
+            margin: 10px 0;
+        }
+
+        canvas.dark-mode {
+            border: 1px solid #ffffff;
+        }
+
+        button {
+            margin: 5px;
+        }
     </style>
 </head>
 <body>
     <h1>WebRTC Echo Cancellation</h1>
+    <button id="darkModeToggle">Toggle Dark Mode</button>
     <input type="file" id="audioFileInput" accept="audio/*">
     <button id="playButton">Play Local Audio File</button>
     <button id="playServerButton">Play Server Audio File</button>
@@ -281,6 +299,13 @@
                 window.URL.revokeObjectURL(url);
             };
         }
+        const darkModeToggle = document.getElementById('darkModeToggle');
+
+        darkModeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            micCanvas.classList.toggle('dark-mode');
+            processedCanvas.classList.toggle('dark-mode');
+        });
     </script>
 </body>
 </html>
