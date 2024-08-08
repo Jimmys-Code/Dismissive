@@ -52,7 +52,6 @@
         let inputGainNode;
         let outputGainNode;
         let socket;
-        let socket;
 
         const audioFileInput = document.getElementById('audioFileInput');
         const playButton = document.getElementById('playButton');
@@ -253,7 +252,6 @@
             mediaRecorder.stop();
             startRecordingButton.disabled = false;
             sendAudioToServer();
-            sendAudioToServer();
             stopRecordingButton.disabled = true;
 
             mediaRecorder.onstop = () => {
@@ -267,23 +265,6 @@
                 a.click();
                 window.URL.revokeObjectURL(url);
             };
-        }
-        async function sendAudioToServer() {
-            const dest = audioContext.createMediaStreamDestination();
-            outputGainNode.connect(dest);
-
-            const mediaRecorder = new MediaRecorder(dest.stream);
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        const base64Data = event.target.result.split(',')[1];
-                        socket.emit('processed_audio', base64Data);
-                    };
-                    reader.readAsDataURL(e.data);
-                }
-            };
-            mediaRecorder.start(1000); // Send data every second
         }
         async function sendAudioToServer() {
             const dest = audioContext.createMediaStreamDestination();
