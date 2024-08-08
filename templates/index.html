@@ -5,58 +5,134 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebRTC Echo Cancellation</title>
     <style>
-        canvas {
-            border: 1px solid #000;
-            margin: 10px 0;
+        body {
+            background-color: #0d0d0d;
+            color: #d4f4dd;
+            font-family: 'Open Sans', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
         }
-        body.dark-mode {
-            background-color: #121212;
+
+        h1 {
+            color: #00ff00;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        .waveforms {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .waveforms canvas {
+            flex: 1;
+            margin: 0 10px;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .controls button {
+            margin: 10px;
+            background-color: #32cd32;
             color: #ffffff;
+            border: none;
+            padding: 15px 30px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .controls button:hover {
+            background-color: #28a745;
+        }
+
+        .volume-controls {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .volume-controls div {
+            flex: 1;
+            margin: 0 10px;
+        }
+
+        .volume-controls label {
+            display: block;
+            margin-bottom: 5px;
+            color: #00ff00;
+        }
+
+        .volume-controls input[type="range"] {
+            width: 100%;
+        }
+
+        .volume-controls span {
+            display: block;
+            margin-top: 5px;
+            color: #00ff00;
         }
 
         canvas {
-            border: 1px solid #000;
-            margin: 10px 0;
-        }
-
-        canvas.dark-mode {
             border: 1px solid #ffffff;
-        }
-
-        button {
-            margin: 5px;
+            margin: 20px 0;
+            border-radius: 5px;
         }
     </style>
 </head>
 <body>
-    <h1>WebRTC Echo Cancellation</h1>
-    <button id="darkModeToggle">Toggle Dark Mode</button>
-    <input type="file" id="audioFileInput" accept="audio/*">
-    <button id="playButton">Play Local Audio File</button>
-    <button id="playServerButton">Play Server Audio File</button>
-    <button id="startRecordingButton">Start Recording</button>
-    <button id="stopRecordingButton" disabled>Stop Recording</button>
-    <div>
-        <label for="inputVolumeControl">Input Volume:</label>
-        <input type="range" id="inputVolumeControl" min="0" max="1" step="0.1" value="1">
-        <span id="inputVolumeValue">1.0</span>
-    </div>
-    <div>
-        <label for="outputVolumeControl">Output Volume:</label>
-        <input type="range" id="outputVolumeControl" min="0" max="2" step="0.1" value="1">
-        <span id="outputVolumeValue">1.0</span>
-    </div>
-    <div>
-        <h3>Server Input</h3>
-        <canvas id="micCanvas" width="800" height="200"></canvas>
-    </div>
-    <div>
-        <h3>After Echo Cancellation</h3>
-        <canvas id="processedCanvas" width="800" height="200"></canvas>
-    </div>
-    <div>
-        <h3>Processed Audio Waveform (Python)</h3>
-        <img id="waveformPlot" src="" alt="Waveform Plot">
+    
+    <div class="container">
+        <h1>WebRTC Echo Cancellation</h1>
+        <div class="waveforms">
+            <div>
+                <h3>Server Input</h3>
+                <canvas id="micCanvas" width="400" height="200"></canvas>
+            </div>
+            <div>
+                <h3>After Echo Cancellation</h3>
+                <canvas id="processedCanvas" width="400" height="200"></canvas>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <input type="file" id="audioFileInput" accept="audio/*">
+            <button id="playButton">Play Local Audio File</button>
+            <button id="playServerButton">Play Server Audio File</button>
+            <button id="startRecordingButton">Start Recording</button>
+            <button id="stopRecordingButton" disabled>Stop Recording</button>
+        </div>
+        <div class="volume-controls">
+            <div>
+                <label for="inputVolumeControl">Input Volume:</label>
+                <input type="range" id="inputVolumeControl" min="0" max="1" step="0.1" value="1">
+                <span id="inputVolumeValue">1.0</span>
+            </div>
+            <div>
+                <label for="outputVolumeControl">Output Volume:</label>
+                <input type="range" id="outputVolumeControl" min="0" max="2" step="0.1" value="1">
+                <span id="outputVolumeValue">1.0</span>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
@@ -246,11 +322,11 @@
         }
 
         function drawWaveform(ctx, data) {
-            ctx.fillStyle = 'rgb(200, 200, 200)';
+            ctx.fillStyle = 'rgb(18, 18, 18)';
             ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
             ctx.lineWidth = 2;
-            ctx.strokeStyle = 'rgb(0, 0, 0)';
+            ctx.strokeStyle = ctx.canvas.id === 'micCanvas' ? 'rgb(255, 255, 255)' : 'rgb(0, 255, 0)';
 
             ctx.beginPath();
 
