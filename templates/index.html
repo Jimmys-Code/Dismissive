@@ -54,6 +54,10 @@
         <h3>After Echo Cancellation</h3>
         <canvas id="processedCanvas" width="800" height="200"></canvas>
     </div>
+    <div>
+        <h3>Processed Audio Waveform (Python)</h3>
+        <img id="waveformPlot" src="" alt="Waveform Plot">
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
@@ -104,6 +108,11 @@
 
         socket.on('audio_file_data', function(data) {
             playServerAudioFile(data.data);
+        });
+
+        socket.on('waveform_update', function(data) {
+            const waveformPlot = document.getElementById('waveformPlot');
+            waveformPlot.src = 'data:image/png;base64,' + data.plot;
         });
 
         async function startAudioProcessing() {

@@ -46,6 +46,14 @@ def handle_connect():
     print('Client connected')
     threading.Thread(target=audio_stream, daemon=True).start()
 
+@socketio.on('processed_audio')
+def handle_processed_audio(data):
+    processed_audio = np.array(data['data'])
+    amplitude = np.abs(processed_audio).mean()
+    bar_length = int(amplitude * 50)  # Scale the bar length
+    bar = '█' * bar_length
+    print(f"\rAmplitude: {bar.ljust(50)} {amplitude:.4f}", end='', flush=True)
+
 @socketio.on('request_audio_file')
 def handle_audio_file_request():
     try:
