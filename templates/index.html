@@ -127,11 +127,28 @@
                 inputGainNode.connect(outputGainNode);
                 outputGainNode.connect(analyserProcessed);
 
+                // Create a ScriptProcessorNode to capture processed audio
+                const scriptNode = audioContext.createScriptProcessor(1024, 1, 1);
+                outputGainNode.connect(scriptNode);
+                scriptNode.connect(audioContext.destination);
+
+                scriptNode.onaudioprocess = function(audioProcessingEvent) {
+                    const inputBuffer = audioProcessingEvent.inputBuffer;
+                    const inputData = inputBuffer.getChannelData(0);
+                    sendProcessedAudioToServer(inputData);
+                };
+
                 // Start updating waveforms
                 updateWaveforms();
             } catch (error) {
                 console.error('Error starting audio processing:', error);
             }
+        }
+
+        function sendProcessedAudioToServer(audioData) {
+            // Convert Float32Array to regular array for JSON serialization
+            const dataArray = Array.from(audioData);
+            socket.emit('processed_audio', { data: dataArray });
         }
 
         function updateInputVolume() {
