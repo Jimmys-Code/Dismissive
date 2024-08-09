@@ -96,6 +96,9 @@ class EchoCancellationServer:
                 self.mic_queue.put(data)
                 self.reference_queue.put(np.zeros(self.CHUNK, dtype=np.int16).tobytes())  # Dummy reference
                 processed_chunk = self.output_queue.get()
+                #play the audio out loud
+                
+                
                 audio_data = np.frombuffer(processed_chunk, dtype=np.int16)
                 audio_data = audio_data.astype(np.float32) / 32768.0  # Normalize to [-1, 1]
                 self.socketio.emit('audio_data', {'data': audio_data.tolist()})
@@ -148,6 +151,8 @@ def main():
         daemon=True
     )
     echo_cancellation_thread.start()
+    
+    
 
     server.start()
 
