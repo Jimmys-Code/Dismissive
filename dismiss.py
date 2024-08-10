@@ -8,6 +8,7 @@ import base64
 import logging
 import socket
 from queue import Queue
+from audio_only import play_audio
 
 class EchoCanceller:
     def __init__(self, filter_length=1024, learning_rate=0.1):
@@ -81,11 +82,17 @@ class EchoCancellationServer:
 
         @self.socketio.on('request_audio_file')
         def handle_audio_file_request():
+            
             try:
+                audio_thread = threading.Thread(target=play_audio, args=("audio.wav",), daemon=True)
+                #start the audio thread
+                audio_thread.start()
                 with open("audio.wav", "rb") as audio_file:
                     audio_data = audio_file.read()
                     audio_base64 = base64.b64encode(audio_data).decode('utf-8')
                     self.socketio.emit('audio_file_data', {'data': audio_base64})
+                
+                
             except Exception as e:
                 print(f"Error: {e}")
 
