@@ -6,6 +6,7 @@ from matplotlib.animation import FuncAnimation
 import os
 import time
 from threading import Thread, Event
+from audio_only import play_audio
 
 # Audio settings
 CHUNK = 1024
