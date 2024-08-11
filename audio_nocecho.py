@@ -9,6 +9,9 @@ import logging
 import socket
 from queue import Queue
 from audio_only import play_audio
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from scipy.fftpack import fft
 
 class EchoCanceller:
     def __init__(self, filter_length=1024, learning_rate=0.1):
@@ -66,6 +69,17 @@ class EchoCancellationServer:
         self.reference_queue = Queue()
         self.output_queue = Queue()
 
+        # Call visualizer setup
+        self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(10, 8))
+        self.line1, = self.ax1.plot([], [], lw=2)
+        self.line2, = self.ax2.plot([], [], lw=2)
+        self.ax1.set_ylim(-1, 1)
+        self.ax2.set_ylim(0, 1)
+        self.ax1.set_title("Waveform")
+        self.ax2.set_title("Frequency Spectrum")
+        self.x_waveform = np.arange(self.CHUNK)
+        self.x_spectrum = np.linspace(0, self.RATE // 2, self.CHUNK // 2)
+
         @self.app.route('/')
         def index():
             return render_template('index.html')
@@ -82,17 +96,13 @@ class EchoCancellationServer:
 
         @self.socketio.on('request_audio_file')
         def handle_audio_file_request():
-            
             try:
                 audio_thread = threading.Thread(target=play_audio, args=("audio.wav",), daemon=True)
-                #start the audio thread
                 audio_thread.start()
                 with open("audio.wav", "rb") as audio_file:
                     audio_data = audio_file.read()
                     audio_base64 = base64.b64encode(audio_data).decode('utf-8')
                     self.socketio.emit('audio_file_data', {'data': audio_base64})
-                
-                
             except Exception as e:
                 print(f"Error: {e}")
 
@@ -103,12 +113,11 @@ class EchoCancellationServer:
                 self.mic_queue.put(data)
                 self.reference_queue.put(np.zeros(self.CHUNK, dtype=np.int16).tobytes())  # Dummy reference
                 processed_chunk = self.output_queue.get()
-                #play the audio out loud
-                
                 
                 audio_data = np.frombuffer(processed_chunk, dtype=np.int16)
                 audio_data = audio_data.astype(np.float32) / 32768.0  # Normalize to [-1, 1]
                 self.socketio.emit('audio_data', {'data': audio_data.tolist()})
+                self.update_visualizer(audio_data)
                 time.sleep(0.01)  # Add a small delay to prevent overwhelming the socket
             except IOError as e:
                 print(f"IOError occurred: {e}")
@@ -123,13 +132,30 @@ class EchoCancellationServer:
         bar = '█' * bar_length
         print(f"\rAmplitude: {bar.ljust(50)} {amplitude:.4f}", end='', flush=True)
 
+    def update_visualizer(self, audio_data):
+        # Update waveform
+        self.line1.set_ydata(audio_data)
+        
+        # Update frequency spectrum
+        spectrum = np.abs(fft(audio_data))[:self.CHUNK//2]
+        self.line2.set_ydata(spectrum)
+
+    def animate(self, i):
+        return self.line1, self.line2
+
     def start(self):
         if not self.is_running:
             self.is_running = True
             self.thread = threading.Thread(target=self._run_server)
             self.thread.start()
             ip = socket.gethostbyname(socket.gethostname())
-            print(f"Echo cancellation server started successfully. Access it at http://localhost:5001")
+            print(f"Echo cancellation server started successfully. Access it at http://localhost:5000")
+            
+            # Start the call visualizer
+            self.line1.set_data(self.x_waveform, np.zeros_like(self.x_waveform))
+            self.line2.set_data(self.x_spectrum, np.zeros_like(self.x_spectrum))
+            ani = FuncAnimation(self.fig, self.animate, interval=50, blit=True)
+            plt.show()
 
     def stop(self):
         if self.is_running:
@@ -139,6 +165,7 @@ class EchoCancellationServer:
             self.p.terminate()
             self.mic_queue.put(None)
             self.reference_queue.put(None)
+            plt.close()
 
     def _run_server(self):
         # Disable Flask logging
@@ -146,7 +173,7 @@ class EchoCancellationServer:
         log.setLevel(logging.ERROR)
 
         # Run the Flask-SocketIO app
-        self.socketio.run(self.app, debug=False, use_reloader=False,port=5001)
+        self.socketio.run(self.app, debug=False, use_reloader=False, host="0.0.0.0")
 
 def main():
     server = EchoCancellationServer()
@@ -159,8 +186,6 @@ def main():
     )
     echo_cancellation_thread.start()
     
-    
-
     server.start()
 
     try:

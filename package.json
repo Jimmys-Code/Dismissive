@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "node-webrtc": "^0.0.0"
+  }
+}
