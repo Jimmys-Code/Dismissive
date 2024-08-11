@@ -15,38 +15,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import os
-import signal
-import psutil
-
-def kill_previous_servers():
-    current_pid = os.getpid()
-    current_script = os.path.basename(__file__)
-    
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-        try:
-            # Check if it's a Python process
-            if 'python' in proc.name().lower():
-                # Check if it's running the same script
-                if any(current_script in cmd for cmd in proc.cmdline()):
-                    # Don't kill the current process
-                    if proc.pid != current_pid:
-                        print(f"Killing previous server instance (PID: {proc.pid})")
-                        os.kill(proc.pid, signal.SIGTERM)
-                        
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-
-    # Kill any lingering Chrome processes started by Selenium
-    for proc in psutil.process_iter(['pid', 'name']):
-        try:
-            if 'chrome' in proc.name().lower():
-                print(f"Killing Chrome instance (PID: {proc.pid})")
-                os.kill(proc.pid, signal.SIGTERM)
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-
-# Call this function at the start of your script
-kill_previous_servers()
+import wave
+from datetime import datetime
 
 class EchoCanceller:
     def __init__(self, filter_length=1024, learning_rate=0.1):
@@ -113,6 +83,11 @@ class EchoCancellationServer:
         self.chrome_options.add_argument("--alsa-output-device=BlackHole_2ch")
         self.driver = None
 
+        # Recording setup
+        self.recording_buffer = []
+        self.samples_per_recording = self.RATE * 5  # 5 seconds of audio
+        self.sample_count = 0
+
         @self.app.route('/')
         def index():
             return render_template('index.html')
@@ -151,10 +126,9 @@ class EchoCancellationServer:
                 audio_data = audio_data.astype(np.float32) / 32768.0  # Normalize to [-1, 1]
                 self.socketio.emit('audio_data', {'data': audio_data.tolist()})
                 self.display_amp(audio_data)
-                time.sleep(0.01)  # Add a small delay to prevent overwhelming the socket
+                self.record_audio(audio_data)
             except IOError as e:
                 print(f"IOError occurred: {e}")
-                time.sleep(0.1)  # Wait a bit before trying again
             except Exception as e:
                 print(f"An error occurred: {e}")
                 break
@@ -165,17 +139,43 @@ class EchoCancellationServer:
         bar = '█' * bar_length
         print(f"\rAmplitude: {bar.ljust(50)} {amplitude:.4f}", end='', flush=True)
 
+    def record_audio(self, audio_data):
+        self.recording_buffer.extend(audio_data)
+        self.sample_count += len(audio_data)
+        
+        if self.sample_count >= self.samples_per_recording:
+            self.save_recording()
+            self.recording_buffer = self.recording_buffer[self.samples_per_recording:]
+            self.sample_count -= self.samples_per_recording
+
+    def save_recording(self):
+        if not os.path.exists("recordings"):
+            os.makedirs("recordings")
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"recordings/recording_{timestamp}.wav"
+        
+        wf = wave.open(filename, 'wb')
+        wf.setnchannels(self.CHANNELS)
+        wf.setsampwidth(self.p.get_sample_size(self.FORMAT))
+        wf.setframerate(self.RATE)
+        audio_data = np.array(self.recording_buffer[:self.samples_per_recording])
+        wf.writeframes((audio_data * 32768.0).astype(np.int16).tobytes())
+        wf.close()
+        
+        print(f"\nSaved recording: {filename}")
+
     def start(self):
         if not self.is_running:
             self.is_running = True
             self.thread = threading.Thread(target=self._run_server)
             self.thread.start()
             ip = socket.gethostbyname(socket.gethostname())
-            print(f"Echo cancellation server started successfully. Access it at http://localhost:5000")
+            print(f"Echo cancellation server started successfully. Access it at http://localhost:5001")
 
             # Open the browser in the background
             self.driver = webdriver.Chrome(options=self.chrome_options)
-            self.driver.get("http://localhost:5000")
+            self.driver.get("http://localhost:5001")
             WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
@@ -200,7 +200,7 @@ class EchoCancellationServer:
         log.setLevel(logging.ERROR)
 
         # Run the Flask-SocketIO app
-        self.socketio.run(self.app, debug=False, use_reloader=False)
+        self.socketio.run(self.app, debug=False, use_reloader=False, port=5001)
 
 def main():
     server = EchoCancellationServer()
